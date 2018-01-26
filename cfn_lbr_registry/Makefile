@@ -4,7 +4,7 @@ BUILD_DIR = .
 TEMPLATE_FILE = lbr-template.yaml
 PACKAGED_TEMPLATE_FILE = lbr-packaged-template.yaml
 
-STACK=LBR
+STACK_NAME=LBR
 
 CONFIG_FILE=lbr.yaml
 
@@ -12,7 +12,7 @@ ACCOUNT:=$(shell aws sts get-caller-identity --query Account | tr -d \")
 REGION:=$(shell aws configure list | awk '/region/{ print $$2 }')
 
 BUCKET=$(REGION).$(ACCOUNT).lbr
-KEY_PREFIX_FOR_CODE=code
+CODE_KEY_PREFIX=code
 
 .DEFAULT_GOAL := all
 
@@ -36,7 +36,7 @@ $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE): $(BUILD_DIR)/$(TEMPLATE_FILE)
 	@aws cloudformation package \
 	--template-file $(BUILD_DIR)/$(TEMPLATE_FILE) \
 	--s3-bucket $(BUCKET) \
-	--s3-prefix $(KEY_PREFIX_FOR_CODE) \
+	--s3-prefix $(CODE_KEY_PREFIX) \
 	--output-template-file $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE) > /dev/null
 
 .PHONY: package
@@ -44,10 +44,10 @@ package: $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE)
 
 .PHONY: deploy
 deploy: $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE)
-	@echo Deploying stack: $(STACK)
+	@echo Deploying stack: $(STACK_NAME)
 	@aws cloudformation deploy \
 	--template-file $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE) \
-    --stack-name $(STACK) \
+    --stack-name $(STACK_NAME) \
     --capabilities CAPABILITY_IAM 2> $(BUILD_DIR)/deploy.err || \
     sed -e '/^$$/d' $(BUILD_DIR)/deploy.err && \
     if grep -q "No changes to deploy" $(BUILD_DIR)/deploy.err; then \

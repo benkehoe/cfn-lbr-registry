@@ -10,9 +10,13 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'cfn-lbr-registry-deploy = cfn_lbr_registry.deploy:main'
+            'cfn-lbr-registry = cfn_lbr_registry.__main__:main'
         ],
     },
+    install_requires=[
+        "yaml >= 3.12.0",
+        "file-transformer"
+    ],
     author='Ben Kehoe',
     author_email='bkehoe@irobot.com',
     project_urls={

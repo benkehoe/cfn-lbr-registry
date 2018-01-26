@@ -37,15 +37,20 @@ class LBRConfig(object):
 class LBR(object):
     def __init__(self, name, cfg, common_properties):
         self.name = name
+        
         self.common_properties = {}
         self.common_properties.update(common_properties)
         self.common_properties.update(cfg.get('CommonProperties', {}))
+        
+        self.enable = cfg.get('Enable', True)
         
         self.versions = {}
         for version_id, version_definition in cfg.get('Versions').items():
             self.versions[version_id] = LBRVersion(self.name, version_id, version_definition, self.common_properties)
     
     def add_to_template(self, template):
+        if not self.enable:
+            return
         for version in self.versions.values():
             version.add_to_template(template)
     
@@ -58,6 +63,8 @@ class LBRVersion(object):
         
         self.version_id = version_id
         
+        self.enable = cfg.get('Enable', True)
+        
         self.beta = cfg.get('Beta', False)
         if self.beta:
             self.version_id = self.version_id + 'beta'
@@ -69,6 +76,8 @@ class LBRVersion(object):
         self.lbr_version_name = self.lbr_name + self.version_id
     
     def add_to_template(self, template):
+        if not self.enable:
+            return
         version_resource_name = self.lbr_version_name + 'Function'
         if 'Resources' not in template:
             template['Resources'] = {}

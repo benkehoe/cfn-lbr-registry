@@ -1,0 +1,2 @@
+-e git://github.com/benkehoe/file-transformer.git@develop#egg=file-transformer
+yaml >= 3.12.0
