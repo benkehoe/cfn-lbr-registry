@@ -12,7 +12,7 @@ def main():
     
     parser.add_argument('action', choices=['deploy', 'package', 'template', 'clean'])
     
-    args, other_args = parser.parse_know_args()
+    args, other_args = parser.parse_known_args()
     
     sys.exit(run_make(args.action, other_args))
 

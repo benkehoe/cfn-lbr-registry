@@ -14,7 +14,7 @@ setup(
         ],
     },
     install_requires=[
-        "yaml >= 3.12.0",
+        "pyyaml",
         "file-transformer"
     ],
     author='Ben Kehoe',

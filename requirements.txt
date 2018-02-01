@@ -1,2 +1,2 @@
--e git://github.com/benkehoe/file-transformer.git@develop#egg=file-transformer
-yaml >= 3.12.0
+-e git://github.com/benkehoe/file-transformer.git@master#egg=file-transformer
+pyyaml >= 3.12.0
