@@ -2,12 +2,17 @@ SHELL = /bin/bash
 BUILD_DIR = .
 #TODO: change to ./.build and use --base-dir once available
 
-TEMPLATE_FILE = lbr-registry-template.yaml
-PACKAGED_TEMPLATE_FILE = lbr-registry-packaged-template.yaml
+ARTIFACT_PREFIX = lbr-registry-artifact-
 
-STACK_NAME=LBR-Registry
+TEMPLATE_FILE = $(ARTIFACT_PREFIX)template.yaml
+PACKAGED_TEMPLATE_FILE = $(ARTIFACT_PREFIX)packaged-template.yaml
 
 CONFIG_FILE=lbr-registry.yaml
+
+ifndef STACK_NAME
+  #TODO: check lbr-registry.yaml
+  STACK_NAME=LBR-Registry
+endif
 
 ifndef ACCOUNT
   ACCOUNT:=$(shell aws sts get-caller-identity --query Account | tr -d \")
@@ -54,7 +59,7 @@ NO_CHANGES_REGEX := "\(No changes to deploy\)\|\(No updates are to be performed\
 .PHONY: deploy
 deploy: $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE)
 	@echo Deploying stack: $(STACK_NAME)
-	aws cloudformation deploy \
+	@aws cloudformation deploy \
 	--stack-name $(STACK_NAME) \
 	--template-file $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE) \
 	--s3-bucket $(BUCKET) \
@@ -70,7 +75,7 @@ deploy: $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE)
 
 .PHONY: clean
 clean:
-	rm -f $(BUILD_DIR)/$(TEMPLATE_FILE) $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE)
+	rm -f $(BUILD_DIR)/$(ARTIFACT_PREFIX)*
 
 .PHONY: all
 all: deploy

@@ -1,42 +1,71 @@
 import six
 import os.path
+import itertools
 
 import yaml
 
 import file_transformer
 
+def _combine(base, overlay, path=None):
+    """combine dicts like SAM"""
+    if path is None:
+        path = []
+    result = {}
+    for key in set(six.iterkeys(base)) | set(six.iterkeys(overlay)):
+        if key in base and key not in overlay:
+            result[key] = base[key]
+        elif key in overlay and key not in base:
+            result[key] = overlay[key]
+        else:
+            value1 = base[key]
+            value2 = overlay[key]
+            if value1 == value2:
+                result[key] = value1
+            elif isinstance(value1, dict) and isinstance(value2, dict):
+                result[key] = _combine(value1, value2, path=path+[key])
+            elif isinstance(value1, list) and isinstance(value2, list):
+                result[key] = list(itertools.chain(value1, value2))
+            else:
+                raise TypeError("Cannot merge {} with {} at {}".format(type(value1), type(value2), '/'.join(path)))
+    return result
+
 class LBRRegistryConfig(object):
     DEFAULT_MEMORY_SIZE = 128
-    DEFAULT_POLICIES = 'AdministratorAccess'
     DEFAULT_TIMEOUT = 300
+    
+    DEFAULT_POLICIES = 'AdministratorAccess'
 
     @classmethod
     def parse(cls, lbr_reg_obj):
         options = lbr_reg_obj.get('Options', {})
-        defaults = lbr_reg_obj.get('Defaults', {})
+        globals = lbr_reg_obj.get('Globals', {})
         resources = {}
         for resource_name, resource_config in six.iteritems(lbr_reg_obj['Resources']):
             resources[resource_name] = LBRRegistryResource.parse(resource_config)
-        return cls(resources, defaults, options)
+        return cls(resources, globals, options)
     
-    def __init__(self, resources, defaults={}, options={}):
+    def __init__(self, resources, globals={}, options={}):
         self.resources = resources
         self.options = options
         
-        self.defaults = {
-            'MemorySize': self.DEFAULT_MEMORY_SIZE,
-            'Timeout': self.DEFAULT_TIMEOUT,
+        globals_default = {
+            'Function': {
+                'MemorySize': self.DEFAULT_MEMORY_SIZE,
+                'Timeout': self.DEFAULT_TIMEOUT,
+            }
         }
-        if self.options.get('EnableDefaultPolicies', False):
-            self.defaults['Policies'] = self.DEFAULT_POLICIES
         
-        self.defaults.update(defaults)
-    
+        self.globals = _combine(globals_default, globals)
+        
+        self.default_policies = self.DEFAULT_POLICIES if self.options.get('EnableDefaultPolicies', False) else None
+        
     def add_to_template(self, template):
         template['Transform'] = 'AWS::Serverless-2016-10-31'
         
+        template['Globals'] = self.globals
+        
         for name, resource in six.iteritems(self.resources):
-            resource.add_to_template(name, template)
+            resource.add_to_template(name, template, default_policies=self.default_policies)
         
 class LBRRegistryResource(object):
     @classmethod
@@ -59,10 +88,10 @@ class LBRRegistryResource(object):
         self.config = config
         self.enable = enable
     
-    def add_to_template(self, name, template):
+    def add_to_template(self, name, template, default_policies=None):
         if not self.enable:
             return
-        self.config.add_to_template(name, template)
+        self.config.add_to_template(name, template, default_policies=default_policies)
 
 class LBRConfig(object):
     @classmethod
@@ -78,10 +107,10 @@ class LBRConfig(object):
         self.versions = versions
         self.enable = enable
     
-    def add_to_template(self, name, template):
+    def add_to_template(self, name, template, default_policies=None):
         versions = self.versions or [self.default]
         for version_id, version in six.iteritems(versions):
-            version.add_to_template(name, version_id, template, self.default)
+            version.add_to_template(name, version_id, template, default=self.default, default_policies=default_policies)
 
 class LBRVersionConfig(object):
     @classmethod
@@ -100,7 +129,7 @@ class LBRVersionConfig(object):
         self.enable = enable
         self.beta = beta
     
-    def add_to_template(self, name, version_id, template, default=None):
+    def add_to_template(self, name, version_id, template, default=None, default_policies=None):
         if not self.enable:
             return
         
@@ -113,6 +142,9 @@ class LBRVersionConfig(object):
         if default:
             properties.update(default.properties)
         properties.update(self.properties)
+        
+        if 'Policies' not in properties and default_policies:
+            properties['Policies'] = default_policies
         
         resource = {
             'Type': 'AWS::Serverless::Function',
