@@ -14,7 +14,7 @@ setup(
     description='Set up a stack of Lambda functions for Lambda-backed custom resources (LBRs)',
     packages=["cfn_lbr_registry"],
     package_data={
-        "cfn_lbr_registry": ["Makefile"]
+        "cfn_lbr_registry": ["Makefile", "_version"]
     },
     entry_points={
         'console_scripts': [
