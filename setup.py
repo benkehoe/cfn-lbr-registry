@@ -1,8 +1,16 @@
 from setuptools import setup
 
+def get_version(name):
+    import os.path
+    path = os.path.join(name, '_version')
+    if not os.path.exists(path):
+        return "0.0.0"
+    with open(path) as f:
+        return f.read().strip()
+
 setup(
     name='cfn-lbr-registry',
-    version='0.1.0',
+    version=get_version('cfn_lbr_registry'),
     description='Set up a stack of Lambda functions for Lambda-backed custom resources (LBRs)',
     packages=["cfn_lbr_registry"],
     package_data={
@@ -20,7 +28,7 @@ setup(
     author='Ben Kehoe',
     author_email='bkehoe@irobot.com',
     project_urls={
-        "https://github.com/benkehoe/cfn-lbr-registry",
+        "Source code": "https://github.com/benkehoe/cfn-lbr-registry",
     },
     license='Apache Software License 2.0',
     classifiers=(
@@ -30,6 +38,7 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.5',
         'License :: OSI Approved :: Apache Software License',
     ),
     keywords='aws cloudformation lambda',
