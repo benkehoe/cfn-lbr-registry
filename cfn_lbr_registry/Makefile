@@ -13,45 +13,42 @@
 #limitations under the License.
 
 SHELL = /bin/bash
-BUILD_DIR = .
-#TODO: change to ./.build and use --base-dir once available
+PYTHON := python$(PYTHON_VERSION)
 
-ARTIFACT_PREFIX = lbr-registry-artifact-
+$(if $(BUILD_DIR),,$(error BUILD_DIR required))
+$(if $(CONFIG_FILE),,$(error CONFIG_FILE required))
+$(if $(STACK_NAME),,$(error STACK_NAME required))
+
+ARTIFACT_PREFIX ?= .lbr-registry-artifact-
 
 TEMPLATE_FILE = $(ARTIFACT_PREFIX)template.yaml
 PACKAGED_TEMPLATE_FILE = $(ARTIFACT_PREFIX)packaged-template.yaml
 
-CONFIG_FILE=lbr-registry.yaml
-
-ifndef STACK_NAME
-  #TODO: check lbr-registry.yaml
-  STACK_NAME=LBR-Registry
-endif
-
-ifndef ACCOUNT
-  ACCOUNT:=$(shell aws sts get-caller-identity --query Account | tr -d \")
-endif
-
-ifndef REGION
-  REGION:=$(shell aws configure list | awk '/region/{ print $$2 }')
-endif
-
-BUCKET=lbr-registry-$(ACCOUNT)-$(REGION)
-CODE_KEY_PREFIX=code
-TEMPLATE_KEY_PREFIX=template
+CODE_KEY_PREFIX = code
+TEMPLATE_KEY_PREFIX = template
 
 .DEFAULT_GOAL := all
 
-$(BUILD_DIR)/$(TEMPLATE_FILE): $(CONFIG_FILE)
+LBR_FILE_NAME ?= lbr.yaml
+
+LBR_CODE_URIS := $(shell $(PYTHON) -m "cfn_lbr_registry.config" paths $(CONFIG_FILE))
+LBR_FILE_PATHS := $(addsuffix /$(LBR_FILE_NAME),$(LBR_CODE_URIS))
+
+$(BUILD_DIR)/$(TEMPLATE_FILE): $(CONFIG_FILE) $(LBR_FILE_PATHS)
 	@echo Generating template
-	@mkdir -p $(BUILD_DIR) && python$(LBR_PYTHON_VERSION) -m "cfn_lbr_registry.config" $(CONFIG_FILE) $(BUILD_DIR)/$(TEMPLATE_FILE)
+	@mkdir -p $(BUILD_DIR) && $(PYTHON) -m "cfn_lbr_registry.config" template $(CONFIG_FILE) $(BUILD_DIR)/$(TEMPLATE_FILE)
 
 .PHONY:
 template: $(BUILD_DIR)/$(TEMPLATE_FILE)
 
-$(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE): $(BUILD_DIR)/$(TEMPLATE_FILE)
+REQUIRE_BUCKET = $(if $(BUCKET),,$(error BUCKET required))
+.PHONY: require_bucket
+require_bucket:
+	$(REQUIRE_BUCKET)
+
+$(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE): require_bucket $(BUILD_DIR)/$(TEMPLATE_FILE)
 	@echo Packaging code
-	@OUTPUT=$$(aws s3api head-bucket --bucket $(BUCKET) 2>&1); \
+	@OUTPUT=$$(aws s3api head-bucket $(AWS_ARGS) --bucket $(BUCKET) 2>&1); \
 	if [ -z "$$OUTPUT" ]; then \
 	  true; \
 	elif echo "$$OUTPUT" | grep -q "404"; then \
@@ -60,6 +57,7 @@ $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE): $(BUILD_DIR)/$(TEMPLATE_FILE)
 	  false; \
 	fi
 	@aws cloudformation package \
+	$(AWS_ARGS) \
 	--template-file $(BUILD_DIR)/$(TEMPLATE_FILE) \
 	--s3-bucket $(BUCKET) \
 	--s3-prefix $(CODE_KEY_PREFIX) \
@@ -71,9 +69,10 @@ package: $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE)
 NO_CHANGES_REGEX := "\(No changes to deploy\)\|\(No updates are to be performed\)"
 
 .PHONY: deploy
-deploy: $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE)
+deploy: require_bucket $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE)
 	@echo Deploying stack: $(STACK_NAME)
 	@aws cloudformation deploy \
+	$(AWS_ARGS) \
 	--stack-name $(STACK_NAME) \
 	--template-file $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE) \
 	--s3-bucket $(BUCKET) \

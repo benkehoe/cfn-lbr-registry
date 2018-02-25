@@ -20,6 +20,7 @@ from __future__ import absolute_import
 import six
 import os.path
 import itertools
+import sys
 
 import yaml
 
@@ -53,6 +54,13 @@ class LBRRegistryConfig(object):
     DEFAULT_TIMEOUT = 300
     
     DEFAULT_POLICIES = 'AdministratorAccess'
+    
+    @classmethod
+    def get_lbr_config_paths(cls, lbr_reg_obj):
+        paths = []
+        for resource_name, resource_config in six.iteritems(lbr_reg_obj['Resources']):
+            paths.append(LBRRegistryResource.get_lbr_config_paths(resource_config))
+        return paths
 
     @classmethod
     def parse(cls, lbr_reg_obj):
@@ -87,6 +95,10 @@ class LBRRegistryConfig(object):
             resource.add_to_template(name, template, default_policies=self.default_policies)
         
 class LBRRegistryResource(object):
+    @classmethod
+    def get_lbr_config_paths(cls, lbr_resource_obj):
+        return lbr_resource_obj['CodeUri']
+    
     @classmethod
     def parse(cls, lbr_resource_obj):
         code_uri = lbr_resource_obj['CodeUri']
@@ -136,15 +148,17 @@ class LBRVersionConfig(object):
     def parse(cls, lbr_version_config_obj):
         types = lbr_version_config_obj.get('Types') or lbr_version_config_obj.get('Type')
         properties = lbr_version_config_obj.get('Properties')
+        metadata = lbr_version_config_obj.get('Metadata')
         enable = lbr_version_config_obj.get('Enable', True)
         beta = lbr_version_config_obj.get('Beta', False)
-        return cls(properties, types, enable, beta)
+        return cls(properties, types=types, enable=enable, beta=beta, metadata=metadata)
     
-    def __init__(self, properties, types=None, enable=True, beta=False):
+    def __init__(self, properties, types=None, enable=True, beta=False, metadata=None):
         if isinstance(types, six.string_types):
             types = [types]
         self.types = types
-        self.properties =properties
+        self.properties = properties
+        self.metadata = metadata
         self.enable = enable
         self.beta = beta
     
@@ -171,6 +185,10 @@ class LBRVersionConfig(object):
         }
         
         metadata = {}
+        if default and default.metadata:
+            metadata.update(default.metadata)
+        if self.metadata:
+            metadata.update(self.metadata)    
         if self.types:
             metadata['LBR::Types'] = self.types
         if metadata:
@@ -190,15 +208,24 @@ class LBRVersionConfig(object):
         template['Outputs'][version_name] = output
 
 def main():
-    loader, dumper = file_transformer.get_yaml_io()
-    def processor(input, args):
-        template = {}
-        LBRRegistryConfig.parse(input).add_to_template(template)
-        return template
-    return file_transformer.main(
-        processor,
-        loader=loader,
-        dumper=dumper)
+    action = sys.argv[1]
+    if action == 'template':
+        loader, dumper = file_transformer.get_yaml_io()
+        def processor(input, args):
+            template = {}
+            LBRRegistryConfig.parse(input).add_to_template(template)
+            return template
+        return file_transformer.main(
+            processor,
+            loader=loader,
+            dumper=dumper,
+            args=sys.argv[2:])
+    elif action == 'paths':
+        with open(sys.argv[2], 'r') as fp:
+            reg_cfg = yaml.load(fp)
+        print(' '.join(LBRRegistryConfig.get_lbr_config_paths(reg_cfg)))
+    else:
+        sys.exit("Invalid action {}".format(action))
 
 if __name__ == '__main__':
     main()

@@ -46,9 +46,10 @@ Options:
   EnableDefaultPolicies: True
 
 Globals:
-  Properties:
-    MemorySize: 128
-    Timeout: 300
+  Function:
+    Properties:
+      MemorySize: 128
+      Timeout: 300
 
 Resources:
   S3Object:

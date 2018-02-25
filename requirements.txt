@@ -1,2 +1,2 @@
--e git://github.com/benkehoe/file-transformer.git@master#egg=file-transformer
+git+https://github.com/benkehoe/file-transformer
 pyyaml >= 3.12.0
