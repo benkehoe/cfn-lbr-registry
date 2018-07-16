@@ -52,7 +52,7 @@ $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE): require_bucket $(BUILD_DIR)/$(TEMPLATE_F
 	if [ -z "$$OUTPUT" ]; then \
 	  true; \
 	elif echo "$$OUTPUT" | grep -q "404"; then \
-	  echo "Creating code bucket" && aws s3api create-bucket --bucket $(BUCKET) --create-bucket-configuration LocationConstraint=$(REGION); \
+	  echo "Creating code bucket" && aws s3api create-bucket --bucket $(BUCKET); \
 	else \
 	  false; \
 	fi
