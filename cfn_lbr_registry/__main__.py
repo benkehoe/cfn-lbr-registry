@@ -28,10 +28,9 @@ def run_make(action, args, other_args):
 
     makefile = pkg_resources.resource_string(__name__, 'Makefile')
     proc = subprocess.Popen(['make', '-f', '-'] + make_args + [action], stdin=subprocess.PIPE)
-    proc.communicate(makefile)
 
-    out, _ = proc.communicate(makefile)
-    return out
+    proc.communicate(makefile)
+    return proc.returncode
 
 def main():
     parser = argparse.ArgumentParser()
