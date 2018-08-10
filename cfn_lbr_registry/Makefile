@@ -52,7 +52,7 @@ $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE): require_bucket $(BUILD_DIR)/$(TEMPLATE_F
 	if [ -z "$$OUTPUT" ]; then \
 	  true; \
 	elif echo "$$OUTPUT" | grep -q "404"; then \
-	  echo "Creating code bucket" && aws s3api create-bucket --bucket $(BUCKET) --create-bucket-configuration LocationConstraint=$(REGION); \
+	  echo "Creating code bucket" && aws s3api create-bucket --bucket $(BUCKET); \
 	else \
 	  false; \
 	fi
@@ -78,12 +78,12 @@ deploy: require_bucket $(BUILD_DIR)/$(PACKAGED_TEMPLATE_FILE)
 	--s3-bucket $(BUCKET) \
 	--s3-prefix $(CODE_KEY_PREFIX) \
 	--capabilities CAPABILITY_IAM 2> $(BUILD_DIR)/deploy.err || \
-	sed -e '/^$$/d' $(BUILD_DIR)/deploy.err && \
+	(sed -e '/^$$/d' $(BUILD_DIR)/deploy.err && \
 	if grep -q $(NO_CHANGES_REGEX) $(BUILD_DIR)/deploy.err; then \
 	  rm -f $(BUILD_DIR)/deploy.err; \
 	else \
-	  rm -f $(BUILD_DIR)/deploy.err && false; \
-	fi
+    rm -f $(BUILD_DIR)/deploy.err && false; \
+	fi)
 
 
 .PHONY: clean

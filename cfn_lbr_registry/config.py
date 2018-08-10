@@ -105,11 +105,8 @@ class LBRRegistryResource(object):
         if 'Config' in lbr_resource_obj:
             config_obj = lbr_resource_obj['Config']
         else:
-            try:
-                with open(os.path.join(code_uri, 'lbr.yaml'), 'r') as fp:
-                    config_obj = yaml.load(fp)
-            except Exception as e:
-                raise
+            with open(os.path.join(code_uri, 'lbr.yaml'), 'r') as fp:
+                config_obj = yaml.load(fp)
         config = LBRConfig.parse(config_obj)
         enable = lbr_resource_obj.get('Enable', True)
         return cls(code_uri, config, enable)
@@ -122,7 +119,7 @@ class LBRRegistryResource(object):
     def add_to_template(self, name, template, default_policies=None):
         if not self.enable:
             return
-        self.config.add_to_template(name, template, default_policies=default_policies)
+        self.config.add_to_template(name, template, self.code_uri, default_policies=default_policies)
 
 class LBRConfig(object):
     @classmethod
@@ -138,10 +135,10 @@ class LBRConfig(object):
         self.versions = versions
         self.enable = enable
     
-    def add_to_template(self, name, template, default_policies=None):
+    def add_to_template(self, name, template, code_uri,  default_policies=None):
         versions = self.versions or [self.default]
         for version_id, version in six.iteritems(versions):
-            version.add_to_template(name, version_id, template, default=self.default, default_policies=default_policies)
+            version.add_to_template(name, version_id, template, code_uri, default=self.default, default_policies=default_policies)
 
 class LBRVersionConfig(object):
     @classmethod
@@ -162,7 +159,7 @@ class LBRVersionConfig(object):
         self.enable = enable
         self.beta = beta
     
-    def add_to_template(self, name, version_id, template, default=None, default_policies=None):
+    def add_to_template(self, name, version_id, template, code_uri, default=None, default_policies=None):
         if not self.enable:
             return
         
@@ -175,6 +172,7 @@ class LBRVersionConfig(object):
         if default:
             properties.update(default.properties)
         properties.update(self.properties)
+        properties['CodeUri'] = code_uri
         
         if 'Policies' not in properties and default_policies:
             properties['Policies'] = default_policies
